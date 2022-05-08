@@ -2,16 +2,50 @@ use argon2::Config;
 use read_input::prelude::input;
 use read_input::{InputBuild, InputConstraints};
 
-pub fn check_password(){
-
-}
-
-pub fn signin(){
+pub fn check_password(username : &String, password : &String) -> bool {
+    let connection = sqlite::open("src/database/accounts.db").unwrap();
+    //Search user in the database
+    let mut statement = connection
+        .prepare("SELECT * FROM users WHERE username = ?")
+        .unwrap();
+    statement.bind(1,username.as_str().clone() ).unwrap();
+    let result = statement.next();
     //Hash input password
     let salt = b"testtttt";
 
     //// Argon2 with default params (Argon2id v19)
     let config =  Config::default();
+    let hash = argon2::hash_encoded(&password.as_bytes(), &*salt, &config).unwrap();
+    let mut hash_db = username.as_bytes();
+    let mut matches = false;
+    //
+    match result{
+        Done =>{
+            let find = statement.read::<String>(1);
+
+            match find{
+                Ok(value)=>{
+                    hash_db = value.as_bytes();
+                    println!("OK {}", value);
+                    matches = argon2::verify_encoded(&hash, &hash_db).unwrap();
+                }
+                Err(..)=>{
+                    println!("Err");
+                    //Username doesn't exist
+                    argon2::verify_encoded(&hash, &hash_db).unwrap();
+                }
+            }
+        }
+        Row=>{
+            println!("This action is not possible");
+        }
+
+    }
+    return matches;
+}
+
+pub fn signin(){
+
     let mut username;
     loop{
         let connection = sqlite::open("src/database/accounts.db").unwrap();
@@ -22,48 +56,14 @@ pub fn signin(){
         println!("What is your master password");
         let password = input::<String>().get();
 
-        //Search user in the database
-        let mut statement = connection
-            .prepare("SELECT * FROM users WHERE username = ?")
-            .unwrap();
-        statement.bind(1,username.as_str().clone() ).unwrap();
-        let result = statement.next();
 
-
-        let hash = argon2::hash_encoded(&password.as_bytes(), &*salt, &config).unwrap();
-        let mut hash_db = username.as_bytes();
-        let mut matches = false;
-        //
-        match result{
-            Done =>{
-                let find = statement.read::<String>(1);
-
-                match find{
-                    Ok(value)=>{
-                        hash_db = value.as_bytes();
-                        println!("OK {}", value);
-                        matches = argon2::verify_encoded(&hash, &hash_db).unwrap();
-                    }
-                    Err(..)=>{
-                        println!("Err");
-                        //Username doesn't exist
-                        argon2::verify_encoded(&hash, &hash_db).unwrap();
-                    }
-                }
-            }
-            Row=>{
-                println!("This action is not possible");
-            }
-
-        }
+        let matches = check_password(&username, &password);
 
         if !matches {
             println!("Connexion not possible");
         }else{
             break;
         }
-
-
     }
 
     println!("You are in Unlocked State");
@@ -76,14 +76,26 @@ pub fn signin(){
                 break
             },
             1 => recover_password(&username),
-            2 =>  add_password(&username),
+            2 => add_password(&username),
+            3 => change_master_password(&username),
             _ => panic!("Invalid input"),
         }
     }
 }
-fn change_master_password(){
-    println!("Enter your password");
-    let password = input::<String>().get();
+fn change_master_password(username : &String){
+    let mut password;
+    loop{
+        println!("Enter your password");
+        password = input::<String>().get();
+
+        let matches = check_password(&username, &password);
+
+        if !matches {
+            println!("Password incorrect");
+        }else{
+            break;
+        }
+    }
 
     println!("Enter your new password");
     let new_password = input::<String>().get();
@@ -91,19 +103,19 @@ fn change_master_password(){
     let connection = sqlite::open("src/database/accounts.db").unwrap();
     //Search the username in the database
     let mut statement = connection
-        .prepare("INSERT INTO password VALUES (?, ?, ?)")
+        .prepare("UPDATE users set password = ? WHERE username = ?")
         .unwrap();
 
-    statement.bind(1, username.as_str().clone()).unwrap();
-    statement.bind(2, password.as_str().clone()).unwrap();
-    statement.bind(3, new_password.as_str().clone()).unwrap();
+    statement.bind(1, new_password.as_str().clone()).unwrap();
+    statement.bind(2, username.as_str().clone()).unwrap();
+
     let result = statement.next();
     match result{
         Done =>{
-            println!("Password added successfully");
+            println!("Password changed successfully");
         }
         Row =>{
-            println!("An error has occured. Password could not be added");
+            println!("An error has occured. The password could not be updated");
         }
     }
 
