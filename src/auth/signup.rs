@@ -48,6 +48,12 @@ pub fn signup(){
     let matches = argon2::verify_encoded(&hash, &password.as_bytes()).unwrap();
     assert!(matches);
 
+    //Create public and private RSA key
+    let mut rng = rand::thread_rng();
+    let bits = 2048;
+    let priv_key = RsaPrivateKey::new(&mut rng, bits).expect("failed to generate a key");
+    let pub_key = RsaPublicKey::from(&priv_key);
+
     //Insert username + hash in the database
     let connection = sqlite::open("src/database/accounts.db").unwrap();
     let mut statement = connection
