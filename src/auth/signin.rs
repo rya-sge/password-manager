@@ -21,7 +21,7 @@ pub fn signin(){
 
 
         let matches = check_password(&username, &password);
-
+        let pkdf = pkdfPassword
         if !matches {
             println!("Connexion not possible");
         }else{
@@ -78,7 +78,7 @@ fn shared_password(username : &String, kdf_key: &String){
                 println!("password get");
 
                 match result_get_password {
-                    Result::State::Done=> {
+                    Ok(t)=> {
                         let getPassword = statement.read::<String>(2);
                         let getLabel = statement.read::<String>(1);
                         match getPassword {
@@ -112,7 +112,7 @@ fn shared_password(username : &String, kdf_key: &String){
                                 println!("No password found");
                             }
                         }
-                    }Result::State::Row =>{
+                    }Err(e) =>{
                         println!("Error has occured");
                     }
 
@@ -155,10 +155,10 @@ fn change_master_password(username : &String){
 
     let result = statement.next();
     match result{
-        Result::State::Done =>{
+        Ok(val)=>{
             println!("Password changed successfully");
         }
-        Result::State::Row =>{
+        Err(e) =>{
             println!("An error has occured. The password could not be updated");
         }
     }
@@ -192,7 +192,7 @@ fn recover_password(username : &String){
     statement.bind(2, label.as_str().clone() ).unwrap();
     let result = statement.next();
     match result{
-        Result::State::Done =>{
+        Ok(value)=>{
             let find =  statement.read::<String>(2);
             match find{
                 Ok(value)=>{
@@ -204,7 +204,7 @@ fn recover_password(username : &String){
                 }
             }
         }
-        Result::State::Row =>{
+       Err(e)=>{{
             println!("Impossible");
         }
 

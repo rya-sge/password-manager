@@ -1,21 +1,21 @@
 use sqlite::{Connection, State};
 use argon2::Config;
-use openssl::rsa::Padding;
-
-pub fn add_user(connection: &Connection, username : &String, password: &String, privateKey : &String, publicKey : &String){
+use openssl::rsa::{Rsa, Padding};
+pub fn add_user(connection: &Connection, username : &String, password: &String, privateKey : &String, publicKey : &String, saltKdf : &String){
     //Insert username + hash in the database
     let mut statement = connection
-        .prepare("INSERT INTO users VALUES (?, ?,?, ?)")
+        .prepare("INSERT INTO users VALUES (?, ?,?, ?, ?)")
         .unwrap();
 
     statement.bind(1, username.as_str().clone()).unwrap();
     statement.bind(2, password.as_str().clone()).unwrap();
     statement.bind(3, privateKey.as_str().clone()).unwrap();
     statement.bind(4, publicKey.as_str().clone()).unwrap();
+    statement.bind(5, saltKdf.as_str().clone()).unwrap();
     statement.next();
     println!("The user was successfully added");
 }
-pub fn add_password_database(connectionUser : &connection, connectionPassword: &Connection, username : &String, password_hash: &String, label : &String){
+pub fn add_password_database(connectionUser : &connection, connectionPassword: &Connection, username : &String, password: &String, label : &String){
     //Search user in the database
     let mut statement = connectionUser
         .prepare("SELECT * FROM users WHERE username = ?")
@@ -24,13 +24,13 @@ pub fn add_password_database(connectionUser : &connection, connectionPassword: &
     let result_get_user =  statement.next();
 
     match result_get_user {
-        Result::State::Done  =>{
+        Ok (e)  =>{
             println!("Username found");
             let result_get_publicKey = statement.read::<String>(2);
             // Encrypt password with public key
             let rsa = Rsa::public_key_from_pem(result_get_publicKey.as_bytes()).unwrap();
             let mut buf: Vec<u8> = vec![0; rsa.size() as usize];
-            let _ = rsa.public_encrypt(data.as_bytes(), &mut buf, Padding::PKCS1).unwrap();
+            let _ = rsa.public_encrypt(password.as_bytes(), &mut buf, Padding::PKCS1).unwrap();
             println!("Encrypted: {:?}", buf);
 
             let data = buf;
@@ -42,25 +42,25 @@ pub fn add_password_database(connectionUser : &connection, connectionPassword: &
 
             statement.bind(1, username.as_str().clone()).unwrap();
             statement.bind(2, label.as_str().clone()).unwrap();
-            statement.bind(3, password_hash.as_str().clone()).unwrap();
+            statement.bind(3, password.as_str().clone()).unwrap();
             let result = statement.next();
             match result{
-                Result::State::Done  =>{
+                Ok (e) =>{
                     println!("Password added successfully");
                 }
-                Result::State::Row =>{
+                Err(e) =>{
                     println!("An error has occured. Password could not be added");
                 }
             }
 
         }
-        Result::State::Row =>{
+        Err(e) =>{
             println!("An error has occured. Password could not be added");
         }
     }
 
 }
-pub fn hashPassword(password : &string) -> String {
+pub fn hashPassword(password : &String) -> String {
     //Hash input password
     let salt = b"testtttt";
 
@@ -83,7 +83,7 @@ pub fn check_password(username : &String, password : &String) -> bool {
     /* search user - end */
 
     match result{
-        Result::State::Done  =>{
+        Ok(val)  =>{
 
             let mut hash_db = username.as_bytes();
             let hash = hashPassword(&password);
@@ -103,7 +103,7 @@ pub fn check_password(username : &String, password : &String) -> bool {
                 }
             }
         }
-        Row=>{
+        Err(e)=>{
             println!("This action is not possible");
         }
 

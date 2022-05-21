@@ -27,7 +27,6 @@ struct Password{
 
 
 fn main() {
-
     //let mut list_password = Vec::new();
     println!("Hello to the best password manager");
     loop {
