@@ -7,7 +7,7 @@ use crate::auth::model::check_password;
 use openssl::rsa::{Rsa, Padding};
 use pbkdf2::Pbkdf2;
 use pbkdf2::password_hash::PasswordHasher;
-use crate::auth::utils::decryptPassword;
+
 
 
 pub fn signin(){
@@ -208,7 +208,6 @@ fn recover_password(username : &String, key_kdf : &String){
     statement.bind(1, username.as_str().clone() ).unwrap();
     statement.bind(2, label.as_str().clone() ).unwrap();
     let result = statement.next();
-    let password_decrypt;
     match result{
         Ok(value)=>{
             let find =  statement.read::<String>(2);

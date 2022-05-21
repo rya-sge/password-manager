@@ -12,7 +12,7 @@ use crate::auth::model::add_user;
 use openssl::rsa::{Rsa, Padding};
 use openssl::symm::Cipher;
 
-pub fn generatePkdf(password: &string) {}
+
 
 pub fn signup() {
     let mut username;
