@@ -4,6 +4,7 @@ use read_input::{InputBuild, InputConstraints};
 use sqlite::{State, Statement, Connection};
 use crate::auth::model::add_password_database;
 use crate::auth::model::check_password;
+use openssl::rsa::Padding;
 
 
 pub fn signin(){
@@ -45,19 +46,20 @@ pub fn signin(){
         }
     }
 }
-fn shared_password(username : &String){
+fn shared_password(username : &String, kdf_key: &String){
     loop{
         println!("Enter the user you want to share your password with");
         let usernameTarget = input::<String>().get();
 
-        let connection = sqlite::open("src/database/accounts.db").unwrap();
+        let connectionAccount = sqlite::open("src/database/accounts.db").unwrap();
         //Search user in the database
-        let mut statement = connection
+        let mut statement = connectionAccount
             .prepare("SELECT * FROM users WHERE username = ?")
             .unwrap();
         statement.bind(1,usernameTarget.as_str().clone() ).unwrap();
         let result_get_user =  statement.next();
         let result_get_user_name = statement.read::<String>(0);
+        let getPrivateKey = statement.read::<String>(2).unwrap();
         let result_get_password;
         match result_get_user_name {
             Ok (e) => {
@@ -76,11 +78,16 @@ fn shared_password(username : &String){
                 println!("password get");
 
                 match result_get_password {
-                    Done => {
+                    Result::State::Done=> {
                         let getPassword = statement.read::<String>(2);
                         let getLabel = statement.read::<String>(1);
                         match getPassword {
                             Ok(value) => {
+                                // Decrypt with private key
+                                let rsa = Rsa::private_key_from_pem_passphrase(private_key_pem.as_bytes(), &kdf_key.as_bytes()).unwrap();
+                                let mut buf: Vec<u8> = vec![0; rsa.size() as usize];
+                                let passwordDecrypt = rsa.private_decrypt(&getPassword, &mut buf, Padding::PKCS1).unwrap();
+                                println!("Decrypted: {}", String::from_utf8(buf).unwrap());
                                 println!("Password is {}", value);
                                 match getLabel {
                                     Ok(label) => {
@@ -89,7 +96,7 @@ fn shared_password(username : &String){
                                         //Search the username in the database
                                         //Search the username in the database
                                         //let connection = sqlite::open("src/database/passwords.db").unwrap();
-                                        add_password_database(&connectionPassword, &usernameTarget, &value, &label);
+                                        add_password_database(&connectionAccount, &connectionPassword, &usernameTarget, &passwordDecrypt, &label);
                                     }
                                     Err(..) => {
                                         //username is available
@@ -105,12 +112,10 @@ fn shared_password(username : &String){
                                 println!("No password found");
                             }
                         }
-                    }Row =>{
+                    }Result::State::Row =>{
                         println!("Error has occured");
                     }
-                    Err(e) =>{
-                        println!("This action is not possible");
-                    }
+
                 }
             }
             Err(e) =>{
@@ -139,9 +144,9 @@ fn change_master_password(username : &String){
     println!("Enter your new password");
     let new_password = input::<String>().get();
 
-    let connection = sqlite::open("src/database/accounts.db").unwrap();
+    let connectionAccounts = sqlite::open("src/database/accounts.db").unwrap();
     //Search the username in the database
-    let mut statement = connection
+    let mut statement = connectionAccounts
         .prepare("UPDATE users set password = ? WHERE username = ?")
         .unwrap();
 
@@ -150,10 +155,10 @@ fn change_master_password(username : &String){
 
     let result = statement.next();
     match result{
-        Done =>{
+        Result::State::Done =>{
             println!("Password changed successfully");
         }
-        Row =>{
+        Result::State::Row =>{
             println!("An error has occured. The password could not be updated");
         }
     }
@@ -162,14 +167,15 @@ fn change_master_password(username : &String){
 
 
 fn add_password(username : &String){
-    let connection = sqlite::open("src/database/passwords.db").unwrap();
+    let connectionPassword = sqlite::open("src/database/passwords.db").unwrap();
+    let connectionAccount = sqlite::open("src/database/accounts.db").unwrap();
     println!("Enter the label of the password");
     let label = input::<String>().get();
 
     println!("Enter the password");
     let value = input::<String>().get();
 
-    add_password_database(&connection, &username, &value, &label);
+    add_password_database(&connectionAccount, &connectionPassword, &username, &value, &label);
 }
 
 
@@ -186,7 +192,7 @@ fn recover_password(username : &String){
     statement.bind(2, label.as_str().clone() ).unwrap();
     let result = statement.next();
     match result{
-        Done =>{
+        Result::State::Done =>{
             let find =  statement.read::<String>(2);
             match find{
                 Ok(value)=>{
@@ -198,7 +204,7 @@ fn recover_password(username : &String){
                 }
             }
         }
-        Row=>{
+        Result::State::Row =>{
             println!("Impossible");
         }
 

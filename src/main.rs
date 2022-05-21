@@ -4,6 +4,7 @@ extern crate argon2;
 extern crate rand;
 extern crate sqlite;
 extern crate pbkdf2;
+extern crate openssl;
 
 mod auth;
 

@@ -1,5 +1,6 @@
-use sqlite::Connection;
+use sqlite::{Connection, State};
 use argon2::Config;
+use openssl::rsa::Padding;
 
 pub fn add_user(connection: &Connection, username : &String, password: &String, privateKey : &String, publicKey : &String){
     //Insert username + hash in the database
@@ -14,27 +15,64 @@ pub fn add_user(connection: &Connection, username : &String, password: &String, 
     statement.next();
     println!("The user was successfully added");
 }
-pub fn add_password_database(connection: &Connection, username : &String, value: &String, label : &String){
-    //Search the username in the database
-    let mut statement = connection
-        .prepare("INSERT INTO password VALUES (?, ?, ?)")
+pub fn add_password_database(connectionUser : &connection, connectionPassword: &Connection, username : &String, password_hash: &String, label : &String){
+    //Search user in the database
+    let mut statement = connectionUser
+        .prepare("SELECT * FROM users WHERE username = ?")
         .unwrap();
+    statement.bind(1,username.as_str().clone() ).unwrap();
+    let result_get_user =  statement.next();
 
-    statement.bind(1, username.as_str().clone()).unwrap();
-    statement.bind(2, label.as_str().clone()).unwrap();
-    statement.bind(3, value.as_str().clone()).unwrap();
-    let result = statement.next();
-    match result{
-        Done =>{
-            println!("Password added successfully");
+    match result_get_user {
+        Result::State::Done  =>{
+            println!("Username found");
+            let result_get_publicKey = statement.read::<String>(2);
+            // Encrypt password with public key
+            let rsa = Rsa::public_key_from_pem(result_get_publicKey.as_bytes()).unwrap();
+            let mut buf: Vec<u8> = vec![0; rsa.size() as usize];
+            let _ = rsa.public_encrypt(data.as_bytes(), &mut buf, Padding::PKCS1).unwrap();
+            println!("Encrypted: {:?}", buf);
+
+            let data = buf;
+
+            //Search the username in the database
+            let mut statement = connectionPassword
+                .prepare("INSERT INTO password VALUES (?, ?, ?)")
+                .unwrap();
+
+            statement.bind(1, username.as_str().clone()).unwrap();
+            statement.bind(2, label.as_str().clone()).unwrap();
+            statement.bind(3, password_hash.as_str().clone()).unwrap();
+            let result = statement.next();
+            match result{
+                Result::State::Done  =>{
+                    println!("Password added successfully");
+                }
+                Result::State::Row =>{
+                    println!("An error has occured. Password could not be added");
+                }
+            }
+
         }
-        Row =>{
+        Result::State::Row =>{
             println!("An error has occured. Password could not be added");
         }
     }
-}
 
+}
+pub fn hashPassword(password : &string) -> String {
+    //Hash input password
+    let salt = b"testtttt";
+
+    //// Argon2 with default params (Argon2id v19)
+    let config =  Config::default();
+    let hash = argon2::hash_encoded(&password.as_bytes(), &*salt, &config).unwrap();
+    return hash;
+}
 pub fn check_password(username : &String, password : &String) -> bool {
+    let mut matches = false;
+
+    /* search user - begin */
     let connection = sqlite::open("src/database/accounts.db").unwrap();
     //Search user in the database
     let mut statement = connection
@@ -42,17 +80,14 @@ pub fn check_password(username : &String, password : &String) -> bool {
         .unwrap();
     statement.bind(1,username.as_str().clone() ).unwrap();
     let result = statement.next();
-    //Hash input password
-    let salt = b"testtttt";
+    /* search user - end */
 
-    //// Argon2 with default params (Argon2id v19)
-    let config =  Config::default();
-    let hash = argon2::hash_encoded(&password.as_bytes(), &*salt, &config).unwrap();
-    let mut hash_db = username.as_bytes();
-    let mut matches = false;
-    //
     match result{
-        Done =>{
+        Result::State::Done  =>{
+
+            let mut hash_db = username.as_bytes();
+            let hash = hashPassword(&password);
+            //
             let find = statement.read::<String>(1);
 
             match find{
