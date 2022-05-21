@@ -35,7 +35,7 @@ pub fn signin(){
                 .prepare("SELECT * FROM users WHERE username = ?")
                 .unwrap();
             statement.bind(1,username.as_str().clone() ).unwrap();
-            let salt = statement.read::<String>(4).unwrap();
+            let salt = statement.read::<[u8]>(4).unwrap();
             key_kdf =  Pbkdf2.hash_password(password.as_bytes(), &salt).unwrap().to_string();
             break;
         }
