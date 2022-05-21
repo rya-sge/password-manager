@@ -1,7 +1,7 @@
 use argon2::Config;
 use read_input::prelude::input;
 use read_input::{InputBuild, InputConstraints};
-use sqlite::{State, Statement, Connection};
+use sqlite::{State, Statement, Connection, Error};
 use crate::auth::model::add_password_database;
 use crate::auth::model::check_password;
 use openssl::rsa::{Rsa, Padding};
@@ -35,9 +35,15 @@ pub fn signin(){
                 .prepare("SELECT * FROM users WHERE username = ?")
                 .unwrap();
             statement.bind(1,username.as_str().clone() ).unwrap();
-            let salt = statement.read::<[u8]>(4).unwrap();
-            key_kdf =  Pbkdf2.hash_password(password.as_bytes(), &salt).unwrap().to_string();
-            break;
+            let salt = statement.read::<[u8]>(4);
+            match salt{
+                Ok(val) =>{
+                    key_kdf =  Pbkdf2.hash_password(password.as_bytes(), &salt).unwrap().to_string();
+                    break;
+                }
+                _ => {}
+            }
+
         }
     }
 
