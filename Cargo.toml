@@ -6,11 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+openssl = { version = "0.10", features = ["vendored"] }
 read_input = "0.8.6"
 regex = "1.5.5"
 rust-argon2 = "1.0"
 rand = "0.5.0"
-rand_core = "0.6.3"
 sqlite = "0.26.0"
-openssl = { version = "0.10", features = ["vendored"] }
+pbkdf2 = "0.10"
+rand_core = { version = "0.6.3", features = ["std"] }
 

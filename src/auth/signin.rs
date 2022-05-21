@@ -1,48 +1,10 @@
 use argon2::Config;
 use read_input::prelude::input;
 use read_input::{InputBuild, InputConstraints};
+use sqlite::{State, Statement, Connection};
+use crate::auth::model::add_password_database;
+use crate::auth::model::check_password;
 
-pub fn check_password(username : &String, password : &String) -> bool {
-    let connection = sqlite::open("src/database/accounts.db").unwrap();
-    //Search user in the database
-    let mut statement = connection
-        .prepare("SELECT * FROM users WHERE username = ?")
-        .unwrap();
-    statement.bind(1,username.as_str().clone() ).unwrap();
-    let result = statement.next();
-    //Hash input password
-    let salt = b"testtttt";
-
-    //// Argon2 with default params (Argon2id v19)
-    let config =  Config::default();
-    let hash = argon2::hash_encoded(&password.as_bytes(), &*salt, &config).unwrap();
-    let mut hash_db = username.as_bytes();
-    let mut matches = false;
-    //
-    match result{
-        Done =>{
-            let find = statement.read::<String>(1);
-
-            match find{
-                Ok(value)=>{
-                    hash_db = value.as_bytes();
-                    println!("OK {}", value);
-                    matches = argon2::verify_encoded(&hash, &hash_db).unwrap();
-                }
-                Err(..)=>{
-                    println!("Err");
-                    //Username doesn't exist
-                    argon2::verify_encoded(&hash, &hash_db).unwrap();
-                }
-            }
-        }
-        Row=>{
-            println!("This action is not possible");
-        }
-
-    }
-    return matches;
-}
 
 pub fn signin(){
 
@@ -78,8 +40,85 @@ pub fn signin(){
             1 => recover_password(&username),
             2 => add_password(&username),
             3 => change_master_password(&username),
+            4 => shared_password(&username),
             _ => panic!("Invalid input"),
         }
+    }
+}
+fn shared_password(username : &String){
+    loop{
+        println!("Enter the user you want to share your password with");
+        let usernameTarget = input::<String>().get();
+
+        let connection = sqlite::open("src/database/accounts.db").unwrap();
+        //Search user in the database
+        let mut statement = connection
+            .prepare("SELECT * FROM users WHERE username = ?")
+            .unwrap();
+        statement.bind(1,usernameTarget.as_str().clone() ).unwrap();
+        let result_get_user =  statement.next();
+        let result_get_user_name = statement.read::<String>(0);
+        let result_get_password;
+        match result_get_user_name {
+            Ok (e) => {
+                //println!("Enter the password label to shared {}");
+                //Get the public key of the user
+                let connectionPassword = sqlite::open("src/database/passwords.db").unwrap();
+                println!("Enter the password label to shared");
+                let label = input::<String>().get();
+
+                let mut statement = connectionPassword
+                    .prepare("SELECT * FROM password WHERE username = ? and label = ?")
+                    .unwrap();
+                statement.bind(1, username.as_str().clone() ).unwrap();
+                statement.bind(2, label.as_str().clone() ).unwrap();
+                result_get_password = statement.next();
+                println!("password get");
+
+                match result_get_password {
+                    Done => {
+                        let getPassword = statement.read::<String>(2);
+                        let getLabel = statement.read::<String>(1);
+                        match getPassword {
+                            Ok(value) => {
+                                println!("Password is {}", value);
+                                match getLabel {
+                                    Ok(label) => {
+                                        println!("Label is {}", label);
+                                        //let connection = sqlite::open("src/database/passwords.db").unwrap();
+                                        //Search the username in the database
+                                        //Search the username in the database
+                                        //let connection = sqlite::open("src/database/passwords.db").unwrap();
+                                        add_password_database(&connectionPassword, &usernameTarget, &value, &label);
+                                    }
+                                    Err(..) => {
+                                        //username is available
+                                        println!("No label found found");
+                                    }
+                                }
+
+                                //Decrypt passwword with private key
+                                //Encrypt password with public key
+                            }
+                            Err(..) => {
+                                //username is available
+                                println!("No password found");
+                            }
+                        }
+                    }Row =>{
+                        println!("Error has occured");
+                    }
+                    Err(e) =>{
+                        println!("This action is not possible");
+                    }
+                }
+            }
+            Err(e) =>{
+                println!("This action is not possible");
+            }
+
+        }
+
     }
 }
 fn change_master_password(username : &String){
@@ -120,37 +159,26 @@ fn change_master_password(username : &String){
     }
 
 }
+
+
 fn add_password(username : &String){
+    let connection = sqlite::open("src/database/passwords.db").unwrap();
     println!("Enter the label of the password");
     let label = input::<String>().get();
 
     println!("Enter the password");
     let value = input::<String>().get();
 
-    let connection = sqlite::open("src/database/passwords.db").unwrap();
-    //Search the username in the database
-    let mut statement = connection
-        .prepare("INSERT INTO password VALUES (?, ?, ?)")
-        .unwrap();
-
-    statement.bind(1, username.as_str().clone()).unwrap();
-    statement.bind(2, label.as_str().clone()).unwrap();
-    statement.bind(3, value.as_str().clone()).unwrap();
-    let result = statement.next();
-    match result{
-        Done =>{
-            println!("Password added successfully");
-        }
-        Row =>{
-            println!("An error has occured. Password could not be added");
-        }
-    }
+    add_password_database(&connection, &username, &value, &label);
 }
+
+
 fn recover_password(username : &String){
     println!("What label are you looking for?");
     let label = input::<String>().get();
     let connection = sqlite::open("src/database/passwords.db").unwrap();
     //Search the username in the database
+    let connection = sqlite::open("src/database/accounts.db").unwrap();
     let mut statement = connection
         .prepare("SELECT * FROM password WHERE username = ? and label = ?")
         .unwrap();

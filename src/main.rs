@@ -3,6 +3,7 @@ extern crate regex;
 extern crate argon2;
 extern crate rand;
 extern crate sqlite;
+extern crate pbkdf2;
 
 mod auth;
 
@@ -13,10 +14,7 @@ use rand::{OsRng, Rng, StdRng, RngCore, FromEntropy};
 use sqlite::State;
 use crate::auth::signin;
 use crate::auth::signup;
-struct Categorie{
-    label:String,
-    regex:String
-}
+
 
 struct Password{
     label:String,
