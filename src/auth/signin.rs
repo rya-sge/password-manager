@@ -101,7 +101,7 @@ fn shared_password(username : &String, kdf_key: &String){
                                                 //&kdf_key);
                                 let rsa = Rsa::private_key_from_pem_passphrase(getPrivateKey.as_bytes(), &kdf_key.as_bytes()).unwrap();
                                 let mut buf: Vec<u8> = vec![0; rsa.size() as usize];
-                                password_result = rsa.private_decrypt(value, &mut buf, Padding::PKCS1).unwrap();
+                                rsa.private_decrypt(value.as_bytes(), &mut buf, Padding::PKCS1).unwrap();
                                 //println!("Decrypted: {}", String::from_utf8(buf).unwrap());
                                 //println!("Decrypted: {}",String::from_utf8(buf).unwrap());
 
@@ -221,7 +221,7 @@ fn recover_password(username : &String, key_kdf : &String){
                                     &kdf_key);*/
                     let rsa = Rsa::private_key_from_pem_passphrase(getPrivateKey.as_bytes(), &key_kdf.as_bytes()).unwrap();
                     let mut buf: Vec<u8> = vec![0; rsa.size() as usize];
-                    password_result = rsa.private_decrypt(value, &mut buf, Padding::PKCS1).unwrap();
+                    rsa.private_decrypt(value.as_bytes(), &mut buf, Padding::PKCS1).unwrap();
                     //println!("Decrypted: {}", String::from_utf8(buf).unwrap());
                     println!("Decrypted: {}",String::from_utf8(buf).unwrap());
                     println!("Password is {}", value);
