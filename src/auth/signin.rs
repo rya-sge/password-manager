@@ -5,11 +5,15 @@ use sqlite::{State, Statement, Connection};
 use crate::auth::model::add_password_database;
 use crate::auth::model::check_password;
 use openssl::rsa::Padding;
+use pbkdf2::Pbkdf2;
+use pbkdf2::password_hash::PasswordHasher;
+use sauge::utils::decryptPassword;
 
 
 pub fn signin(){
 
     let mut username;
+    let mut key_kdf;
     loop{
         let connection = sqlite::open("src/database/accounts.db").unwrap();
         //Get user credential
@@ -21,7 +25,7 @@ pub fn signin(){
 
 
         let matches = check_password(&username, &password);
-        let pkdf = pkdfPassword
+        key_kdf =  Pbkdf2.hash_password(password.as_bytes(), &salt).unwrap().to_string();
         if !matches {
             println!("Connexion not possible");
         }else{
@@ -38,10 +42,10 @@ pub fn signin(){
                 println!("Goodbye!");
                 break
             },
-            1 => recover_password(&username),
+            1 => recover_password(&username, &key_kdf ),
             2 => add_password(&username),
             3 => change_master_password(&username),
-            4 => shared_password(&username),
+            4 => shared_password(&username, &key_kdf),
             _ => panic!("Invalid input"),
         }
     }
@@ -84,10 +88,12 @@ fn shared_password(username : &String, kdf_key: &String){
                         match getPassword {
                             Ok(value) => {
                                 // Decrypt with private key
-                                let rsa = Rsa::private_key_from_pem_passphrase(private_key_pem.as_bytes(), &kdf_key.as_bytes()).unwrap();
-                                let mut buf: Vec<u8> = vec![0; rsa.size() as usize];
-                                let passwordDecrypt = rsa.private_decrypt(&getPassword, &mut buf, Padding::PKCS1).unwrap();
-                                println!("Decrypted: {}", String::from_utf8(buf).unwrap());
+                                let mut passwordDecrypt = "";
+                                decryptPassword(&getPrivateKey, &value,&passwordDecrypt.to_str(),
+                                                &kdf_key);
+                                //println!("Decrypted: {}", String::from_utf8(buf).unwrap());
+                                 println!("Decrypted: {}",passwordDecrypt);
+
                                 println!("Password is {}", value);
                                 match getLabel {
                                     Ok(label) => {
@@ -179,7 +185,7 @@ fn add_password(username : &String){
 }
 
 
-fn recover_password(username : &String){
+fn recover_password(username : &String, key_kdf : &String){
     println!("What label are you looking for?");
     let label = input::<String>().get();
     let connection = sqlite::open("src/database/passwords.db").unwrap();
@@ -191,11 +197,19 @@ fn recover_password(username : &String){
     statement.bind(1, username.as_str().clone() ).unwrap();
     statement.bind(2, label.as_str().clone() ).unwrap();
     let result = statement.next();
+    let password_decrypt;
     match result{
         Ok(value)=>{
             let find =  statement.read::<String>(2);
             match find{
                 Ok(value)=>{
+                    let getPrivateKey = statement.read::<String>(2).unwrap();
+                    // Decrypt with private key
+                    let mut passwordDecrypt = "";
+                    decryptPassword(&getPrivateKey, &value,&passwordDecrypt.to_str(),
+                                    &kdf_key);
+                    //println!("Decrypted: {}", String::from_utf8(buf).unwrap());
+                    println!("Decrypted: {}",passwordDecrypt);
                     println!("Password is {}", value);
                 }
                 Err(..)=>{
@@ -204,7 +218,7 @@ fn recover_password(username : &String){
                 }
             }
         }
-       Err(e)=>{{
+       Err(e)=>{
             println!("Impossible");
         }
 

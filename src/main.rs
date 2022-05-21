@@ -5,6 +5,7 @@ extern crate rand;
 extern crate sqlite;
 extern crate pbkdf2;
 extern crate openssl;
+extern crate sauge;
 
 mod auth;
 

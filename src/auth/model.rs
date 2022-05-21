@@ -1,7 +1,8 @@
 use sqlite::{Connection, State};
 use argon2::Config;
 use openssl::rsa::{Rsa, Padding};
-pub fn add_user(connection: &Connection, username : &String, password: &String, privateKey : &String, publicKey : &String, saltKdf : &String){
+
+pub fn add_user(connection: &Connection, username: &String, password: &String, privateKey: &String, publicKey: &String, saltKdf: &String) {
     //Insert username + hash in the database
     let mut statement = connection
         .prepare("INSERT INTO users VALUES (?, ?,?, ?, ?)")
@@ -15,16 +16,18 @@ pub fn add_user(connection: &Connection, username : &String, password: &String, 
     statement.next();
     println!("The user was successfully added");
 }
-pub fn add_password_database(connectionUser : &connection, connectionPassword: &Connection, username : &String, password: &String, label : &String){
+
+
+pub fn add_password_database(connectionUser: &connection, connectionPassword: &Connection, username: &String, password: &String, label: &String) {
     //Search user in the database
     let mut statement = connectionUser
         .prepare("SELECT * FROM users WHERE username = ?")
         .unwrap();
-    statement.bind(1,username.as_str().clone() ).unwrap();
-    let result_get_user =  statement.next();
+    statement.bind(1, username.as_str().clone()).unwrap();
+    let result_get_user = statement.next();
 
     match result_get_user {
-        Ok (e)  =>{
+        Ok(e) => {
             println!("Username found");
             let result_get_publicKey = statement.read::<String>(2);
             // Encrypt password with public key
@@ -44,32 +47,32 @@ pub fn add_password_database(connectionUser : &connection, connectionPassword: &
             statement.bind(2, label.as_str().clone()).unwrap();
             statement.bind(3, password.as_str().clone()).unwrap();
             let result = statement.next();
-            match result{
-                Ok (e) =>{
+            match result {
+                Ok(e) => {
                     println!("Password added successfully");
                 }
-                Err(e) =>{
+                Err(e) => {
                     println!("An error has occured. Password could not be added");
                 }
             }
-
         }
-        Err(e) =>{
+        Err(e) => {
             println!("An error has occured. Password could not be added");
         }
     }
-
 }
-pub fn hashPassword(password : &String) -> String {
+
+pub fn hashPassword(password: &String) -> String {
     //Hash input password
     let salt = b"testtttt";
 
     //// Argon2 with default params (Argon2id v19)
-    let config =  Config::default();
+    let config = Config::default();
     let hash = argon2::hash_encoded(&password.as_bytes(), &*salt, &config).unwrap();
     return hash;
 }
-pub fn check_password(username : &String, password : &String) -> bool {
+
+pub fn check_password(username: &String, password: &String) -> bool {
     let mut matches = false;
 
     /* search user - begin */
@@ -78,35 +81,33 @@ pub fn check_password(username : &String, password : &String) -> bool {
     let mut statement = connection
         .prepare("SELECT * FROM users WHERE username = ?")
         .unwrap();
-    statement.bind(1,username.as_str().clone() ).unwrap();
+    statement.bind(1, username.as_str().clone()).unwrap();
     let result = statement.next();
     /* search user - end */
 
-    match result{
-        Ok(val)  =>{
-
+    match result {
+        Ok(val) => {
             let mut hash_db = username.as_bytes();
             let hash = hashPassword(&password);
             //
             let find = statement.read::<String>(1);
 
-            match find{
-                Ok(value)=>{
+            match find {
+                Ok(value) => {
                     hash_db = value.as_bytes();
                     println!("OK {}", value);
                     matches = argon2::verify_encoded(&hash, &hash_db).unwrap();
                 }
-                Err(..)=>{
+                Err(..) => {
                     println!("Err");
                     //Username doesn't exist
                     argon2::verify_encoded(&hash, &hash_db).unwrap();
                 }
             }
         }
-        Err(e)=>{
+        Err(e) => {
             println!("This action is not possible");
         }
-
     }
     return matches;
 }
