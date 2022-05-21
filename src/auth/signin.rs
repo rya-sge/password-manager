@@ -7,11 +7,10 @@ use crate::auth::model::check_password;
 use openssl::rsa::Padding;
 use pbkdf2::Pbkdf2;
 use pbkdf2::password_hash::PasswordHasher;
-use sauge::utils::decryptPassword;
+use crate::auth::utils::decryptPassword;
 
 
 pub fn signin(){
-
     let mut username;
     let mut key_kdf;
     loop{
@@ -25,10 +24,19 @@ pub fn signin(){
 
 
         let matches = check_password(&username, &password);
-        key_kdf =  Pbkdf2.hash_password(password.as_bytes(), &salt).unwrap().to_string();
+
         if !matches {
+
             println!("Connexion not possible");
         }else{
+            let connectionAccount = sqlite::open("src/database/accounts.db").unwrap();
+            //Search user in the database
+            let mut statement = connectionAccount
+                .prepare("SELECT * FROM users WHERE username = ?")
+                .unwrap();
+            statement.bind(1,username.as_str().clone() ).unwrap();
+            let salt = statement.read::<String>(4).unwrap();
+            key_kdf =  Pbkdf2.hash_password(password.as_bytes(), &salt).unwrap().to_string();
             break;
         }
     }
@@ -89,10 +97,13 @@ fn shared_password(username : &String, kdf_key: &String){
                             Ok(value) => {
                                 // Decrypt with private key
                                 let mut passwordDecrypt = "";
-                                decryptPassword(&getPrivateKey, &value,&passwordDecrypt.to_str(),
-                                                &kdf_key);
+                                //decryptPassword(&getPrivateKey, &value,&passwordDecrypt.to_str(),
+                                                //&kdf_key);
+                                let rsa = Rsa::private_key_from_pem_passphrase(getPrivateKey.as_bytes(), &kdf_key.as_bytes()).unwrap();
+                                let mut buf: Vec<u8> = vec![0; rsa.size() as usize];
+                                password_result = rsa.private_decrypt(value, &mut buf, Padding::PKCS1).unwrap();
                                 //println!("Decrypted: {}", String::from_utf8(buf).unwrap());
-                                 println!("Decrypted: {}",passwordDecrypt);
+                                //println!("Decrypted: {}",String::from_utf8(buf).unwrap());
 
                                 println!("Password is {}", value);
                                 match getLabel {
@@ -102,7 +113,7 @@ fn shared_password(username : &String, kdf_key: &String){
                                         //Search the username in the database
                                         //Search the username in the database
                                         //let connection = sqlite::open("src/database/passwords.db").unwrap();
-                                        add_password_database(&connectionAccount, &connectionPassword, &usernameTarget, &passwordDecrypt, &label);
+                                        add_password_database(&connectionAccount, &connectionPassword, &usernameTarget, &String::from_utf8(buf).unwrap(), &label);
                                     }
                                     Err(..) => {
                                         //username is available
@@ -206,10 +217,13 @@ fn recover_password(username : &String, key_kdf : &String){
                     let getPrivateKey = statement.read::<String>(2).unwrap();
                     // Decrypt with private key
                     let mut passwordDecrypt = "";
-                    decryptPassword(&getPrivateKey, &value,&passwordDecrypt.to_str(),
-                                    &kdf_key);
+                    /*decryptPassword(&getPrivateKey, &value,&passwordDecrypt.to_str(),
+                                    &kdf_key);*/
+                    let rsa = Rsa::private_key_from_pem_passphrase(getPrivateKey.as_bytes(), &key_kdf.as_bytes()).unwrap();
+                    let mut buf: Vec<u8> = vec![0; rsa.size() as usize];
+                    password_result = rsa.private_decrypt(value, &mut buf, Padding::PKCS1).unwrap();
                     //println!("Decrypted: {}", String::from_utf8(buf).unwrap());
-                    println!("Decrypted: {}",passwordDecrypt);
+                    println!("Decrypted: {}",String::from_utf8(buf).unwrap());
                     println!("Password is {}", value);
                 }
                 Err(..)=>{

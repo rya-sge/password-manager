@@ -18,7 +18,8 @@ pub fn add_user(connection: &Connection, username: &String, password: &String, p
 }
 
 
-pub fn add_password_database(connectionUser: &connection, connectionPassword: &Connection, username: &String, password: &String, label: &String) {
+pub fn add_password_database(connectionUser: &Connection, connectionPassword: &Connection, username: &String,
+                             password: &String, label: &String) {
     //Search user in the database
     let mut statement = connectionUser
         .prepare("SELECT * FROM users WHERE username = ?")
@@ -29,14 +30,13 @@ pub fn add_password_database(connectionUser: &connection, connectionPassword: &C
     match result_get_user {
         Ok(e) => {
             println!("Username found");
-            let result_get_publicKey = statement.read::<String>(2);
+            let result_get_publicKey = statement.read::<String>(2).unwrap();
             // Encrypt password with public key
             let rsa = Rsa::public_key_from_pem(result_get_publicKey.as_bytes()).unwrap();
             let mut buf: Vec<u8> = vec![0; rsa.size() as usize];
             let _ = rsa.public_encrypt(password.as_bytes(), &mut buf, Padding::PKCS1).unwrap();
-            println!("Encrypted: {:?}", buf);
+            //println!("Encrypted: {:?}", buf);
 
-            let data = buf;
 
             //Search the username in the database
             let mut statement = connectionPassword
@@ -45,7 +45,7 @@ pub fn add_password_database(connectionUser: &connection, connectionPassword: &C
 
             statement.bind(1, username.as_str().clone()).unwrap();
             statement.bind(2, label.as_str().clone()).unwrap();
-            statement.bind(3, password.as_str().clone()).unwrap();
+            statement.bind(3, String::from_utf8(buf).unwrap()).unwrap();
             let result = statement.next();
             match result {
                 Ok(e) => {

@@ -82,8 +82,9 @@ pub fn signup() {
             let pubK = String::from_utf8(public_key).unwrap();
             println!("Private key: {}", privateK);
             println!("Public key: {}", pubK);
+            let strSalt = salt.as_str().to_string();
 
-            add_user(&connection, &username, &password, &privateK, &pubK, salt);
+            add_user(&connection, &username, &password, &privateK, &pubK, &strSalt);
         }
         Err(err) => {
             println!("{}", err.to_string());
