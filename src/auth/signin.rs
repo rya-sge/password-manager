@@ -4,7 +4,7 @@ use read_input::{InputBuild, InputConstraints};
 use sqlite::{State, Statement, Connection};
 use crate::auth::model::add_password_database;
 use crate::auth::model::check_password;
-use openssl::rsa::Padding;
+use openssl::rsa::{Rsa, Padding};
 use pbkdf2::Pbkdf2;
 use pbkdf2::password_hash::PasswordHasher;
 use crate::auth::utils::decryptPassword;
