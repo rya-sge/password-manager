@@ -45,7 +45,8 @@ pub fn add_password_database(connectionUser: &Connection, connectionPassword: &C
 
             statement.bind(1, username.as_str().clone()).unwrap();
             statement.bind(2, label.as_str().clone()).unwrap();
-            statement.bind(3, String::from_utf8(buf).unwrap().as_str()).unwrap();
+            let bufferString = String::from_utf8(buf).unwrap();
+            statement.bind(3, bufferString.as_str().clone()).unwrap();
             let result = statement.next();
             match result {
                 Ok(e) => {
