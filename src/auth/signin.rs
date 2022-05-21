@@ -33,7 +33,7 @@ pub fn signin(){
                 .prepare("SELECT * FROM users WHERE username = ?")
                 .unwrap();
             statement.bind(1,username.as_str().clone() ).unwrap();
-            result = statement.next();
+            let result = statement.next();
             match result {
                 Ok(_val) => {
                     let salt = statement.read::<String>(4).unwrap();
