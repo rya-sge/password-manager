@@ -10,8 +10,8 @@ pub fn add_user(connection: &Connection, username: &String, password: &String, p
 
     statement.bind(1, username.as_str().clone()).unwrap();
     statement.bind(2, password.as_str().clone()).unwrap();
-    statement.bind(3, privateKey.as_str().clone()).unwrap();
-    statement.bind(4, publicKey.as_str().clone()).unwrap();
+    statement.bind(3, publicKey.as_str().clone()).unwrap();
+    statement.bind(4, privateKey.as_str().clone()).unwrap();
     statement.bind(5, saltKdf.as_str().clone()).unwrap();
     statement.next();
     println!("The user was successfully added");
