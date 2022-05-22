@@ -1,6 +1,8 @@
 use sqlite::{Connection, State};
 use argon2::Config;
 use openssl::rsa::{Rsa, Padding};
+use std::str;
+use crate::auth::constante::{ACCOUNTS_DB_PUBLIC_KEY, ACCOUNTS_DB_PASSWORD, RSA_PADDING_CHOICE};
 
 pub fn add_user(connection: &Connection, username: &String, password: &String, privateKey: &String, publicKey: &String, saltKdf: &String) {
     //Insert username + hash in the database
@@ -30,11 +32,11 @@ pub fn add_password_database(connectionUser: &Connection, connectionPassword: &C
     match result_get_user {
         Ok(e) => {
             println!("Username found");
-            let result_get_publicKey = statement.read::<String>(2).unwrap();
+            let result_get_publicKey = statement.read::<String>(ACCOUNTS_DB_PUBLIC_KEY).unwrap();
             // Encrypt password with public key
             let rsa = Rsa::public_key_from_pem(result_get_publicKey.as_bytes()).unwrap();
             let mut buf: Vec<u8> = vec![0; rsa.size() as usize];
-            let _ = rsa.public_encrypt(password.as_bytes(), &mut buf, Padding::PKCS1).unwrap();
+            let _ = rsa.public_encrypt(password.as_bytes(), &mut buf, RSA_PADDING_CHOICE).unwrap();
             //println!("Encrypted: {:?}", buf);
 
 
@@ -45,8 +47,9 @@ pub fn add_password_database(connectionUser: &Connection, connectionPassword: &C
 
             statement.bind(1, username.as_str().clone()).unwrap();
             statement.bind(2, label.as_str().clone()).unwrap();
-            let bufferString = str::from_utf8(buf).unwrap();
-            statement.bind(3, bufferString).unwrap();
+            //let bufferString = str::from(&buf).unwrap();
+            let c: &[u8] = &buf;
+            statement.bind(3, c).unwrap();
             let result = statement.next();
             match result {
                 Ok(e) => {
@@ -91,8 +94,7 @@ pub fn check_password(username: &String, password: &String) -> bool {
             let mut hash_db = username.as_bytes();
             let hash = hashPassword(&password);
             //
-            let find = statement.read::<String>(1);
-
+            let find = statement.read::<String>(ACCOUNTS_DB_PASSWORD);
             match find {
                 Ok(value) => {
                     hash_db = value.as_bytes();

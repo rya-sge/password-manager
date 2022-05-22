@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+openssl-sys = "0.9"
 openssl = { version = "0.10", features = ["vendored"] }
 read_input = "0.8.6"
 regex = "1.5.5"
