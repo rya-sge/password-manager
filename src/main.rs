@@ -6,24 +6,14 @@ extern crate sqlite;
 extern crate pbkdf2;
 extern crate openssl;
 extern crate sauge;
+extern crate core;
 
 mod auth;
 
 use read_input::prelude::input;
 use read_input::{InputBuild, InputConstraints};
-use argon2::Config;
-use rand::{OsRng, Rng, StdRng, RngCore, FromEntropy};
-use sqlite::State;
 use crate::auth::signin;
 use crate::auth::signup;
-
-
-struct Password{
-    label:String,
-    password:String
-}
-
-
 
 
 

@@ -10,9 +10,9 @@ openssl-sys = "0.9"
 openssl = { version = "0.10", features = ["vendored"] }
 read_input = "0.8.6"
 regex = "1.5.5"
-rust-argon2 = "1.0"
 rand = "0.5.0"
 sqlite = "0.26.0"
 pbkdf2 = "0.10"
 rand_core = { version = "0.6.3", features = ["std"] }
-
+argon2 = "0.3"
+password-hash = "0.4.0"
