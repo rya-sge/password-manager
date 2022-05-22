@@ -14,7 +14,9 @@ use argon2::{
     Argon2
 };
 
-
+/*
+Create an account
+ */
 pub fn signup() {
     let mut username;
     let connection = sqlite::open("src/database/accounts.db").unwrap();
@@ -57,7 +59,8 @@ pub fn signup() {
     let argon2 = Argon2::default();
 
     // Hash password to PHC string ($argon2id$v=19$...)
-    let password_hash = argon2.hash_password(&password.as_bytes(), &salt_password_hash).unwrap().to_string();
+    let password_hash = argon2.hash_password(&password.as_bytes(),
+                                             &salt_password_hash).unwrap().to_string();
 
     let parsed_hash = PasswordHash::new(&password_hash).unwrap();
     assert!(Argon2::default().verify_password(&password.as_bytes(), &parsed_hash).is_ok());
@@ -68,17 +71,18 @@ pub fn signup() {
     match kdf_key {
         Ok(val) => {
             assert!(Pbkdf2.verify_password(password.as_bytes(), &val).is_ok());
-            //println!("KDF : {}", val.to_string());
-            /* Create public and private RSA key*/
+            /* Create a public and private RSA key */
             let rsa = Rsa::generate(2048).unwrap();
-            let private_key: Vec<u8> = rsa.private_key_to_pem_passphrase(Cipher::chacha20_poly1305(), val.to_string().as_bytes()).unwrap();
+            let private_key: Vec<u8> = rsa.private_key_to_pem_passphrase(Cipher::chacha20_poly1305(),
+                                                                         val.to_string().as_bytes()).unwrap();
 
             let public_key: Vec<u8> = rsa.public_key_to_pem().unwrap();
             let private_key_string = String::from_utf8(private_key).unwrap();
             let pub_key_string = String::from_utf8(public_key).unwrap();
             let salt_string = salt_key_kdf.as_str().to_string();
 
-            add_user(&connection, &username, &password_hash, &private_key_string, &pub_key_string, &salt_string);
+            add_user(&connection, &username, &password_hash, &private_key_string,
+                     &pub_key_string, &salt_string);
         }
         Err(err) => {
             println!("{}", err.to_string());

@@ -1,3 +1,8 @@
+/*
+Author : Ryan Sauge
+Date : 22.05
+Function to interact with the database
+ */
 use sqlite::{Connection};
 use openssl::rsa::{Rsa};
 use crate::auth::constante::{ACCOUNTS_DB_PUBLIC_KEY, ACCOUNTS_DB_PASSWORD, RSA_PADDING_CHOICE};
@@ -7,9 +12,9 @@ use argon2::{
     },
     Argon2,
 };
-use argon2::password_hash::Error;
 
-pub fn add_user(connection: &Connection, username: &String, password: &String, private_key: &String, public_key: &String, salt_kdf: &String) {
+pub fn add_user(connection: &Connection, username: &String, password: &String, private_key: &String,
+                public_key: &String, salt_kdf: &String) {
     //Insert username + hash in the database
     let mut statement = connection
         .prepare("INSERT INTO users VALUES (?, ?,?, ?, ?)")
@@ -20,7 +25,7 @@ pub fn add_user(connection: &Connection, username: &String, password: &String, p
     statement.bind(3, public_key.as_str().clone()).unwrap();
     statement.bind(4, private_key.as_str().clone()).unwrap();
     statement.bind(5, salt_kdf.as_str().clone()).unwrap();
-    statement.next();
+    statement.next().unwrap();
     println!("The user was successfully added");
 }
 
@@ -37,16 +42,12 @@ pub fn add_password_database(connection_user: &Connection, connection_password: 
     match result_get_user {
         Ok(_e) => {
             println!("Username found");
-            println!("pass {}", password );
-            println!("lab {}", label);
+            println!("label : {}", label);
             let result_get_public_key = statement.read::<String>(ACCOUNTS_DB_PUBLIC_KEY).unwrap();
-            println!("public key {}", result_get_public_key);
             // Encrypt password with public key
             let rsa = Rsa::public_key_from_pem(result_get_public_key.as_bytes()).unwrap();
             let mut buf: Vec<u8> = vec![0; rsa.size() as usize];
             let _ = rsa.public_encrypt(password.as_bytes(), &mut buf, RSA_PADDING_CHOICE).unwrap();
-            //println!("Encrypted: {:?}", buf);
-
 
             //Search the username in the database
             let mut statement = connection_password
@@ -55,7 +56,6 @@ pub fn add_password_database(connection_user: &Connection, connection_password: 
 
             statement.bind(1, username.as_str().clone()).unwrap();
             statement.bind(2, label.as_str().clone()).unwrap();
-            //let bufferString = str::from(&buf).unwrap();
             let c: &[u8] = &buf;
             statement.bind(3, c).unwrap();
             let result = statement.next();
@@ -94,20 +94,20 @@ pub fn check_password(connection: &Connection, username: &String, password: &Str
                 }
                 sqlite::State::Row => {
                     let hash_db = statement.read::<String>(ACCOUNTS_DB_PASSWORD);
-                    match hash_db{
-                        Ok(result_hash) =>{
+                    match hash_db {
+                        Ok(result_hash) => {
                             let parsed_hash = PasswordHash::new(&result_hash);
                             match parsed_hash {
-                                Ok(parsed_hash_result) =>{
-                                    matches = Argon2::default().verify_password(&password.as_bytes(), &parsed_hash_result).is_ok();
+                                Ok(parsed_hash_result) => {
+                                    matches = Argon2::default().verify_password(&password.as_bytes(),
+                                                                                &parsed_hash_result).is_ok();
                                 }
                                 _ => {
                                     matches = false;
                                 }
                             }
-
                         }
-                        Err(_e) =>{
+                        Err(_e) => {
                             matches = false;
                         }
                     }

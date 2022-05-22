@@ -5,16 +5,14 @@ use crate::auth::model::check_password;
 use openssl::rsa::{Rsa};
 use pbkdf2::Pbkdf2;
 use pbkdf2::password_hash::PasswordHasher;
-use crate::auth::constante::{PASSWORD_DB_LABEL, PASSWORD_DB_VALUE, ACCOUNTS_DB_PRIVATE_KEY, ACCOUNTS_DB_KDF_SALT, ACCOUNTS_DB_USERNAME, RSA_PADDING_CHOICE};
-use sqlite::{State, Error};
+use crate::auth::constante::{PASSWORD_DB_LABEL, PASSWORD_DB_VALUE, ACCOUNTS_DB_PRIVATE_KEY,
+                             ACCOUNTS_DB_KDF_SALT, RSA_PADDING_CHOICE};
 use argon2::password_hash::SaltString;
 use argon2::password_hash::rand_core::OsRng;
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use openssl::symm::Cipher;
-use crate::auth::constante::ACCOUNTS_DB_PUBLIC_KEY;
 
 pub fn signin() {
-    let mut change_password = 0;
     let mut username;
     let key_kdf;
     let connection_accounts = sqlite::open("src/database/accounts.db").unwrap();
@@ -44,7 +42,6 @@ pub fn signin() {
                 Ok(_val) => {
                     let salt = statement.read::<String>(ACCOUNTS_DB_KDF_SALT).unwrap();
                     key_kdf = Pbkdf2.hash_password(password.as_bytes(), &salt).unwrap().to_string();
-                    //println!("KDF : {} ", key_kdf);
                     break;
                 }
                 Err(_e) => {
@@ -57,9 +54,6 @@ pub fn signin() {
     println!("You are in Unlocked State");
 
     loop {
-        if change_password == 1 {
-            break;
-        }
         match input::<u32>().repeat_msg("What do you want to do?\n1 - Recover a password\n2 - add a new password\n3 - Changer master password\n4 - Share a password\n0 - quit\nYour input ? [0-4]")
             .min_max(0, 4).get() {
             0 => {
@@ -68,7 +62,7 @@ pub fn signin() {
             }
             1 => recover_password(&username, &key_kdf),
             2 => add_password(&username),
-            3 => change_master_password(&username, &key_kdf, &change_password),
+            3 => change_master_password(&username, &key_kdf),
             4 => shared_password(&username, &key_kdf),
             _ => panic!("Invalid input"),
         }
@@ -95,9 +89,6 @@ fn shared_password(username: &String, kdf_key: &String) {
                         break;
                     }
                     sqlite::State::Row => {
-                        //let result_get_user_name = statement.read::<String>(ACCOUNTS_DB_USERNAME);
-                        //let get_private_key = statement.read::<String>(ACCOUNTS_DB_PRIVATE_KEY).unwrap();
-                        //Get the public key of the user
                         let connection_password = sqlite::open("src/database/passwords.db").unwrap();
                         println!("Enter the password label to shared");
                         let label = input::<String>().get();
@@ -118,71 +109,23 @@ fn shared_password(username: &String, kdf_key: &String) {
                                         match get_label {
                                             Ok(label) => {
                                                 println!("Label is {}", label);
-                                                //Get private key
+                                                //Get the  private key
                                                 let mut statement_account = connection_account
                                                     .prepare("SELECT * FROM users WHERE username = ?")
                                                     .unwrap();
                                                 statement_account.bind(1, username.as_str().clone()).unwrap();
-                                                statement_account.next();
+                                                statement_account.next().unwrap();
                                                 let get_private_key = statement_account.read::<String>(ACCOUNTS_DB_PRIVATE_KEY).unwrap();
-                                                // Decrypt with private key
+
+                                                // Decrypt the password with private key
                                                 let rsa = Rsa::private_key_from_pem_passphrase(get_private_key.as_bytes(), &kdf_key.as_bytes()).unwrap();
                                                 let mut buf: Vec<u8> = vec![0; rsa.size() as usize];
                                                 rsa.private_decrypt(&value, &mut buf, RSA_PADDING_CHOICE).unwrap();
 
+                                                /* TODO: Don't work */
                                                 let res = String::from_utf8(buf).unwrap();
-                                                println!("Password is decrypted {}", res);
-                                                println!("Password is decrypted {}", res);
-                                                //Search the username in the database
-                                                //add_password_database(&connection_account, &connection_password, &username_target, &res, &label);
-                                                //Search user in the database
-                                                let mut statement = connection_account
-                                                    .prepare("SELECT * FROM users WHERE username = ?")
-                                                    .unwrap();
-                                                statement.bind(1, username_target.as_str().clone()).unwrap();
-                                                let result_get_user = statement.next();
+                                                add_password_database(&connection_account, &connection_password, &username_target, &res, &label);
 
-                                                match result_get_user {
-                                                    Ok(_e) => {
-                                                        println!("Username found");
-                                                        //println!("pass {}", password );
-                                                        println!("lab {}", label);
-                                                        let result_get_public_key = statement.read::<String>(ACCOUNTS_DB_PUBLIC_KEY).unwrap();
-                                                        println!("public key {}", result_get_public_key);
-                                                        // Encrypt password with public key
-                                                        let rsa = Rsa::public_key_from_pem(result_get_public_key.as_bytes()).unwrap();
-                                                        let mut buf_result: Vec<u8> = vec![0; rsa.size() as usize];
-                                                        let _test = "test".to_string();
-                                                        //println!("Decrypted RES: {}", res);
-                                                        let _ = rsa.public_encrypt(&res.as_bytes(), &mut buf_result, RSA_PADDING_CHOICE).unwrap();
-                                                        //println!("Encrypted: {:?}", buf);
-
-
-                                                        //Search the username in the database
-                                                        let mut statement =connection_password
-                                                            .prepare("INSERT INTO password VALUES (?, ?, ?)")
-                                                            .unwrap();
-
-                                                        statement.bind(1, username_target.as_str().clone()).unwrap();
-                                                        statement.bind(2, label.as_str().clone()).unwrap();
-                                                        //let bufferString = str::from(&buf).unwrap();
-                                                        let c: &[u8] = &buf_result;
-                                                        statement.bind(3, c).unwrap();
-                                                        let result = statement.next();
-                                                        match result {
-                                                            Ok(_e) => {
-                                                                println!("Password added successfully");
-                                                            }
-                                                            Err(_e) => {
-                                                                println!("An error has occured. Password could not be added");
-                                                            }
-                                                        }
-                                                    }
-                                                    Err(_e) => {
-                                                        println!("An error has occured. Password could not be added");
-                                                    }
-                                                }
-                                                //ENd
                                             }
                                             Err(..) => {
                                                 //username is available
@@ -213,7 +156,7 @@ fn shared_password(username: &String, kdf_key: &String) {
     }
 }
 
-fn change_master_password(username: &String, mut old_key_kdf: &String, mut change_password: &i32) {
+fn change_master_password(username: &String, old_key_kdf: &String) {
     let mut password;
     let connection_accounts = sqlite::open("src/database/accounts.db").unwrap();
     loop {
@@ -235,11 +178,11 @@ fn change_master_password(username: &String, mut old_key_kdf: &String, mut chang
     // Change password
     let connection_accounts = sqlite::open("src/database/accounts.db").unwrap();
     let salt_password_hash = SaltString::generate(&mut OsRng);
-    let salt_string = salt_password_hash.as_str().to_string();
     // Argon2 with default params (Argon2id v19)
     let argon2 = Argon2::default();
     // Hash password to PHC string ($argon2id$v=19$...)
-    let password_hash = argon2.hash_password(&new_password.as_bytes(), &salt_password_hash).unwrap().to_string();
+    let password_hash = argon2.hash_password(&new_password.as_bytes(),
+                                             &salt_password_hash).unwrap().to_string();
     let parsed_hash = PasswordHash::new(&password_hash).unwrap();
     assert!(Argon2::default().verify_password(&new_password.as_bytes(), &parsed_hash).is_ok());
 
@@ -252,21 +195,22 @@ fn change_master_password(username: &String, mut old_key_kdf: &String, mut chang
     match kdf_key {
         Ok(val) => {
             assert!(Pbkdf2.verify_password(&new_password.as_bytes(), &val).is_ok());
-            //println!("KDF : {}", val.to_string());
-            /* Create public and private RSA key*/
-            //Get private key
+
             let mut statement_account = connection_accounts
                 .prepare("SELECT * FROM users WHERE username = ?")
                 .unwrap();
             statement_account.bind(1, username.as_str().clone()).unwrap();
-            statement_account.next();
+            statement_account.next().unwrap();
+            // Get private key
             let get_private_key = statement_account.read::<String>(ACCOUNTS_DB_PRIVATE_KEY).unwrap();
-            // Get the private key
-            let rsa = Rsa::private_key_from_pem_passphrase(get_private_key.as_bytes(), &old_key_kdf.as_bytes()).unwrap();
+            // Decrypt the private key
+            let rsa = Rsa::private_key_from_pem_passphrase(get_private_key.as_bytes(),
+                                                           &old_key_kdf.as_bytes()).unwrap();
 
 
             //Encrypt private key with passphrase
-            let private_key: Vec<u8> = rsa.private_key_to_pem_passphrase(Cipher::chacha20_poly1305(), val.to_string().as_bytes()).unwrap();
+            let private_key: Vec<u8> = rsa.private_key_to_pem_passphrase(Cipher::chacha20_poly1305(),
+                                                                         val.to_string().as_bytes()).unwrap();
             let private_key_string = String::from_utf8(private_key).unwrap();
 
             //Update the user in the database
@@ -283,7 +227,6 @@ fn change_master_password(username: &String, mut old_key_kdf: &String, mut chang
             match result {
                 Ok(_val) => {
                     println!("Password changed successfully. You need to log again");
-                    change_password = &1;
                     panic!("No other solution found")
                 }
                 Err(_e) => {
@@ -323,7 +266,7 @@ fn recover_password(username: &String, key_kdf: &String) {
     statement.bind(2, label.as_str().clone()).unwrap();
     let result = statement.next();
     match result {
-        Ok(value) => {
+        Ok(_value) => {
             let find = statement.read::<Vec<u8>>(PASSWORD_DB_VALUE);
             match find {
                 Ok(value) => {
@@ -331,10 +274,11 @@ fn recover_password(username: &String, key_kdf: &String) {
                         .prepare("SELECT * FROM users WHERE username = ?")
                         .unwrap();
                     statement_account.bind(1, username.as_str().clone()).unwrap();
-                    statement_account.next();
+                    statement_account.next().unwrap();
                     let get_private_key = statement_account.read::<String>(ACCOUNTS_DB_PRIVATE_KEY).unwrap();
                     // Decrypt with private key
-                    let rsa = Rsa::private_key_from_pem_passphrase(get_private_key.as_bytes(), &key_kdf.as_bytes()).unwrap();
+                    let rsa = Rsa::private_key_from_pem_passphrase(get_private_key.as_bytes(),
+                                                                   &key_kdf.as_bytes()).unwrap();
                     let mut buf: Vec<u8> = vec![0; rsa.size() as usize];
                     rsa.private_decrypt(&value, &mut buf, RSA_PADDING_CHOICE).unwrap();
                     println!("Decrypted: {}", String::from_utf8(buf).unwrap());

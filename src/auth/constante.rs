@@ -7,4 +7,4 @@ pub static ACCOUNTS_DB_PASSWORD: usize = 1;
 pub static ACCOUNTS_DB_PUBLIC_KEY: usize = 2;
 pub static ACCOUNTS_DB_PRIVATE_KEY: usize = 3;
 pub static ACCOUNTS_DB_KDF_SALT: usize = 4;
-pub static RSA_PADDING_CHOICE: Padding = Padding::PKCS1;
+pub static RSA_PADDING_CHOICE: Padding = Padding::PKCS1_OAEP;

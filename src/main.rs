@@ -16,10 +16,8 @@ use crate::auth::signin;
 use crate::auth::signup;
 
 
-
 fn main() {
-    //let mut list_password = Vec::new();
-    println!("Hello to the best password manager");
+    println!("Welcome to the best password manager");
     loop {
         match input::<u32>().repeat_msg("What do you want to do?\n1 - signin\n2 - signup\n0 - quit\nYour input ? [0-2]")
             .min_max(0, 2).get() {

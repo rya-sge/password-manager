@@ -1,9 +1,11 @@
 # Password manager
 [TOC]
 
+Know bugs
 
 
-### Known bugs
+
+
 
 ![known_bug](C:\Users\super\switchdrive2\VM\kali\caa\password-manager\assets\known_bug.PNG)
 
@@ -98,4 +100,12 @@ It is also possible to delete objects immediately from memory with `drop`, witho
 - The Derived Key from master password is vulnerable to side channel attack. When a user is connected, it is available in memory. The attacker can therefore decrypt the RSA private key to then decrypt all passwords from the target user.
 - The IVs drawn for chacha20_poly1305 are randomly drawn. It limits the number of private key we can encrypted.
 - The salt for generate the derived Key from master password is stored in clear in the database. For a better security, we could encrypt the salt with the user's public key.
+
+### Implementation - Exemple
+
+![test-1](C:\Users\super\switchdrive2\VM\kali\caa\password-manager\assets\test-1.PNG)
+
+![test-2](C:\Users\super\switchdrive2\VM\kali\caa\password-manager\assets\test-2.PNG)
+
+![test-3](./assets/test-3.PNG)
 
