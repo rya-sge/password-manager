@@ -68,7 +68,7 @@ pub fn signup() {
     match kdf_key {
         Ok(val) => {
             assert!(Pbkdf2.verify_password(password.as_bytes(), &val).is_ok());
-            println!("KDF : {}", val.to_string());
+            //println!("KDF : {}", val.to_string());
             /* Create public and private RSA key*/
             let rsa = Rsa::generate(2048).unwrap();
             let private_key: Vec<u8> = rsa.private_key_to_pem_passphrase(Cipher::chacha20_poly1305(), val.to_string().as_bytes()).unwrap();

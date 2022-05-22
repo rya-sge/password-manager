@@ -3,10 +3,11 @@ use openssl::rsa::{Rsa};
 use crate::auth::constante::{ACCOUNTS_DB_PUBLIC_KEY, ACCOUNTS_DB_PASSWORD, RSA_PADDING_CHOICE};
 use argon2::{
     password_hash::{
-        PasswordHash, PasswordVerifier
+        PasswordHash, PasswordVerifier,
     },
-    Argon2
+    Argon2,
 };
+use argon2::password_hash::Error;
 
 pub fn add_user(connection: &Connection, username: &String, password: &String, private_key: &String, public_key: &String, salt_kdf: &String) {
     //Insert username + hash in the database
@@ -36,7 +37,10 @@ pub fn add_password_database(connection_user: &Connection, connection_password: 
     match result_get_user {
         Ok(_e) => {
             println!("Username found");
+            println!("pass {}", password );
+            println!("lab {}", label);
             let result_get_public_key = statement.read::<String>(ACCOUNTS_DB_PUBLIC_KEY).unwrap();
+            println!("public key {}", result_get_public_key);
             // Encrypt password with public key
             let rsa = Rsa::public_key_from_pem(result_get_public_key.as_bytes()).unwrap();
             let mut buf: Vec<u8> = vec![0; rsa.size() as usize];
@@ -70,7 +74,7 @@ pub fn add_password_database(connection_user: &Connection, connection_password: 
     }
 }
 
-pub fn check_password(connection : &Connection, username: &String, password: &String) -> bool {
+pub fn check_password(connection: &Connection, username: &String, password: &String) -> bool {
     let mut matches = false;
 
     /* search user - begin */
@@ -83,10 +87,32 @@ pub fn check_password(connection : &Connection, username: &String, password: &St
     /* search user - end */
 
     match result {
-        Ok(_val) => {
-            let hash_db =  statement.read::<String>(ACCOUNTS_DB_PASSWORD).unwrap();
-            let parsed_hash = PasswordHash::new(&hash_db).unwrap();
-            matches = Argon2::default().verify_password(&password.as_bytes(), &parsed_hash).is_ok();
+        Ok(val) => {
+            match val {
+                sqlite::State::Done => {
+                    matches = false;
+                }
+                sqlite::State::Row => {
+                    let hash_db = statement.read::<String>(ACCOUNTS_DB_PASSWORD);
+                    match hash_db{
+                        Ok(result_hash) =>{
+                            let parsed_hash = PasswordHash::new(&result_hash);
+                            match parsed_hash {
+                                Ok(parsed_hash_result) =>{
+                                    matches = Argon2::default().verify_password(&password.as_bytes(), &parsed_hash_result).is_ok();
+                                }
+                                _ => {
+                                    matches = false;
+                                }
+                            }
+
+                        }
+                        Err(_e) =>{
+                            matches = false;
+                        }
+                    }
+                }
+            }
         }
         Err(_e) => {
             println!("This action is not possible");
