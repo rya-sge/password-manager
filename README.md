@@ -1,21 +1,29 @@
 # Password manager
 [TOC]
 
-Know bugs
+## Known bugs
 
+The feature `Shared password`does not work.
 
+| Step | Description                                                  | Work |
+| ---- | ------------------------------------------------------------ | ---- |
+| 1    | Recover the password corresponding to the label with the user's private key | Yes  |
+| 2    | Retrieve target user's public key                            | Yes  |
+| 3    | Encrypt the password with the target user's public key       | No   |
 
+Example
 
+In this example, some information is displayed for debugging purposes. This is of course test data
 
-![known_bug](C:\Users\super\switchdrive2\VM\kali\caa\password-manager\assets\known_bug.PNG)
+![known_bug](./assets/known_bug.PNG)
 
 ## Description of program
 
-The user creates an account on the application. An RSA key pair is created and the RSA private key is encrypted with the key derived from the master password.
+The user creates an account on the application. An RSA key pair is created. and the RSA private key is encrypted with the key derived from the master password.
 
-The hash of the master password is stored in the database.
+The hash of the master password is stored in the database (accounts.db).
 
-When the user adds a new password to the database, it is encrypted with the RSA public key.
+When the user adds a new password to the database (passwords.db), it is encrypted with the RSA public key.
 
 When  a user wishes to share a password with another user, he also uses the public key.
 
@@ -42,7 +50,7 @@ When  a user wishes to share a password with another user, he also uses the publ
 | RSA public key              | The RSA public key is used to encrypt a password             | no                                                           |
 | RSA Private Key             | The RSA private key is used to decrypt a password            | Encrypted with the key derived from master password (chacha20_poly1305) |
 | Master password             | The master password unlocks the state of the program.        | Only the hash of the password is stored in the database (argon2) |
-| Derived Key master password | The the key derived from master password is necessary to decrypt the RSA private Key | It's not registered anywhere                                 |
+| Derived Key master password | The key derived from master password is necessary to decrypt the RSA private Key | It's not registered anywhere                                 |
 | Stored password             | Passwords stored in the database                             | Encrypted with the RSA public key                            |
 
 
@@ -53,11 +61,11 @@ When  a user wishes to share a password with another user, he also uses the publ
 
 The hash of the master password is created with Argon2. 
 
-The used library is argon2 : [https://docs.rs/argon2/0.4.0/argon2/](https://docs.rs/argon2/0.4.0/argon2/) with the default algorithm : **Argon2id**, a hybrid version combining both Argon2i and Argon2d.
+The library used is argon2 : [https://docs.rs/argon2/0.4.0/argon2/](https://docs.rs/argon2/0.4.0/argon2/) with the default algorithm : **Argon2id**, a hybrid version combining both Argon2i and Argon2d.
 
 The generated salt has a size of 128 bits.
 
-An another library, rust-argon2, has only a salt of 64 bits. That's why it wasn't chosen.
+Another library, rust-argon2, has only a salt of 64 bits. That's why it wasn't chosen.
 
 Link :  [https://docs.rs/rust-argon2/latest/argon2/](https://docs.rs/rust-argon2/latest/argon2/)
 
@@ -65,7 +73,7 @@ Link :  [https://docs.rs/rust-argon2/latest/argon2/](https://docs.rs/rust-argon2
 
 From the password, a key is derived with the algorithm [pbkdf2](https://docs.rs/pbkdf2/latest/pbkdf2/#). The library used is pkdf2 : [https://docs.rs/pbkdf2/latest/pbkdf2/](https://docs.rs/pbkdf2/latest/pbkdf2/)
 
-The algorithm used is different from that for the hash of the password, because an attacker could then obtain the key of the database.
+The algorithm used is different from that for the hash of the password, because an attacker could then obtain the key from the database.
 
 ### Asymmetric encryption
 
@@ -83,29 +91,40 @@ For the padding, the openssl library offers three different paddings : PKCS1, PK
 - PKCS1_PSS_PADDING is designed for signature, not encryption
 -  PKCS1_OAEP is IND-CCA2, but it is vulnerable to Manger’s attack.
 
-Therefore, OAEP padding is used because it is the better solution between the three possibilities.
+Therefore, padding OAEP  is used because it is the better solution between the three possibilities.
 
-Link to documentation : [https://docs.rs/openssl/latest/src/openssl/rsa.rs.html#50](https://docs.rs/openssl/latest/src/openssl/rsa.rs.html#50)
+Link for documentation : [https://docs.rs/openssl/latest/src/openssl/rsa.rs.html#50](https://docs.rs/openssl/latest/src/openssl/rsa.rs.html#50)
 
-### Rust 
+### RSA private key encryption
+
+The algorithm used is chacha20_poly1300 to perform authentication encryption. Also, the aes-gcm128 algorithm did not work with the openssl library for some unknown reason.
+
+## Rust 
+
+### Memory
 
 With the rust, the memory of an object will be erased as soon as the function ends. Its implementation is also more restrictive.
 
 Unfortunately, it is a difficult language and I can not use its full potential. 
 
-It is also possible to delete objects immediately from memory with `drop`, without waiting for the end of the function : https://doc.rust-lang.org/std/mem/fn.drop.html. Nevertheless, I didn't have time to use it.
+It is also possible to delete objects immediately from memory with `drop`, without waiting for the end of the function : [https://doc.rust-lang.org/std/mem/fn.drop.html](https://doc.rust-lang.org/std/mem/fn.drop.html). Nevertheless, I didn't have time to use it.
+
+### Library
+
+Personally, the crypto libraries were a big disappointment. Very few are audited and corrected. Moreover, many bugs are present.
 
 ## Limitation
 
 - The Derived Key from master password is vulnerable to side channel attack. When a user is connected, it is available in memory. The attacker can therefore decrypt the RSA private key to then decrypt all passwords from the target user.
-- The IVs drawn for chacha20_poly1305 are randomly drawn. It limits the number of private key we can encrypted.
+- The IVs drawn for `chacha20_poly1305` are randomly drawn. It limits the number of private keys we can encrypted.
 - The salt for generate the derived Key from master password is stored in clear in the database. For a better security, we could encrypt the salt with the user's public key.
+- Encrypted passwords can be modified by an attacker in the database. No tag calculation is performed. However, it is likely that the decryption will cause an error.
 
-### Implementation - Exemple
+### Implementation - Example
 
-![test-1](C:\Users\super\switchdrive2\VM\kali\caa\password-manager\assets\test-1.PNG)
+![test-1](./assets/test-1.PNG)
 
-![test-2](C:\Users\super\switchdrive2\VM\kali\caa\password-manager\assets\test-2.PNG)
+![test-2](./assets/test-2.PNG)
 
 ![test-3](./assets/test-3.PNG)
 
