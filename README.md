@@ -1,21 +1,9 @@
 # Password manager
 [TOC]
 
-## Known bugs
+# Warning
 
-The feature `Shared password`does not work.
-
-| Step | Description                                                  | Work |
-| ---- | ------------------------------------------------------------ | ---- |
-| 1    | Recover the password corresponding to the label with the user's private key | Yes  |
-| 2    | Retrieve target user's public key                            | Yes  |
-| 3    | Encrypt the password with the target user's public key       | No   |
-
-Example
-
-In this example, some information is displayed for debugging purposes. This is of course test data
-
-![known_bug](./assets/known_bug.PNG)
+This is a student project. This program should not be used in production or for your daily use.
 
 ## Description of program
 
@@ -47,7 +35,7 @@ When  a user wishes to share a password with another user, he also uses the publ
 
 | Name                        | Description                                                  | Protection                                                   |
 | --------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| RSA public key              | The RSA public key is used to encrypt a password             | no                                                           |
+| RSA public key              | The RSA public key is used to encrypt a password             | no [Improvement: authenticate the public key with a tag computed with the master key] |
 | RSA Private Key             | The RSA private key is used to decrypt a password            | Encrypted with the key derived from master password (chacha20_poly1305) |
 | Master password             | The master password unlocks the state of the program.        | Only the hash of the password is stored in the database (argon2) |
 | Derived Key master password | The key derived from master password is necessary to decrypt the RSA private Key | It's not registered anywhere                                 |
@@ -120,6 +108,32 @@ Personally, the crypto libraries were a big disappointment. Very few are audited
 - The salt for generate the derived Key from master password is stored in clear in the database. For a better security, we could encrypt the salt with the user's public key.
 - Encrypted passwords can be modified by an attacker in the database. No tag calculation is performed. However, it is likely that the decryption will cause an error.
 
+
+
+### Better solution
+
+#### Password sharing
+
+A better solution to shared password between user it's used a hybrid encryption instead of use only the public key of the user. For example with the KEM algorithm
+
+Then to only add a password, , it would be relevant to encrypt passwords with a sysmetric key (Derived from the master key) to encrypt the password.
+
+#### Authenticate the public key
+
+Morevoer, in the labo, the user's public key is not authenticated. I was planning to do it but I had too many errors in rust. An attacker that can write in the dabase can change easily change the public key. The user will therefore use  the attacker's public key.
+
+For a better security, we can compute a tag on the public key with the master key.
+
+When sharing a password, this public key cannot be verified because it requires the master password.
+
+- **Function register**
+
+![registre-new](./assets/registre-new.png)
+
+Function add a password
+
+#### ![add-password-new](./assets/add-password-new.png)
+
 ### Implementation - Example
 
 ![test-1](./assets/test-1.PNG)
@@ -128,3 +142,21 @@ Personally, the crypto libraries were a big disappointment. Very few are audited
 
 ![test-3](./assets/test-3.PNG)
 
+## Known bugs
+
+- The feature `Shared password`does not work.
+
+
+| Step | Description                                                  | Work |
+| ---- | ------------------------------------------------------------ | ---- |
+| 1    | Recover the password corresponding to the label with the user's private key | Yes  |
+| 2    | Retrieve target user's public key                            | Yes  |
+| 3    | Encrypt the password with the target user's public key       | No   |
+
+Example
+
+In this example, some information is displayed for debugging purposes. This is of course test data
+
+![known_bug](./assets/known_bug.PNG)
+
+- The generation of the master key is not correct.
