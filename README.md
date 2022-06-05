@@ -160,3 +160,35 @@ In this example, some information is displayed for debugging purposes. This is o
 ![known_bug](./assets/known_bug.PNG)
 
 - The generation of the master key is not correct.
+
+## Evaluation
+
+### Report
+
+- Authentication 1/1
+- Key derivation 1.7/3
+
+ It's not a great idea to combine Argon2 and PBKDF2. You increase the amount of code and the risk of bugs.                      
+
+The choice to do everything with asymmetric crypto is quite heavy and you lose performance. Also, the entries are not authenticated, which allows attacks l.                      
+
+RSA-OAEP limits the size of your plain text but you explain in your report that hybrid encryption would be better, so not penalized 
+
+- Password change 2/2 #Not explained in the report but ok in the code 
+- Password sharing 1.5/2 
+
+RSA-OAEP limits the size of your plain text (which implies the error you have) BONUS: Overall 6.2/8
+
+### Implementation
+
+- Login 1/1 
+- Add password 1/1 
+- Display password 1/1 
+- Share password 1/2 
+
+Not working due to RSA-OAEP 
+
+- Change master password 1.5/2 #Panic 
+- Password not in clear in memory 1/1 
+
+Overall 6.5/8
