@@ -7,13 +7,13 @@ This is a student project. This program should not be used in production or for 
 
 ## Description of program
 
-The user creates an account on the application. An RSA key pair is created. and the RSA private key is encrypted with the key derived from the master password.
+The user creates an account on the application. An RSA key pair is created, and the RSA private key is encrypted with the key derived from the master password.
 
 The hash of the master password is stored in the database (accounts.db).
 
 When the user adds a new password to the database (passwords.db), it is encrypted with the RSA public key.
 
-When  a user wishes to share a password with another user, he also uses the public key.
+When a user wishes to share a password with another user, he also uses the public key.
 
 ### Creating an account
 
@@ -77,7 +77,7 @@ For the padding, the openssl library offers three different paddings : PKCS1, PK
 
 - PKCS1 is not IND-CPA secure
 - PKCS1_PSS_PADDING is designed for signature, not encryption
--  PKCS1_OAEP is IND-CCA2, but it is vulnerable to Manger’s attack.
+- PKCS1_OAEP is IND-CCA2, but it is vulnerable to Manger’s attack.
 
 Therefore, padding OAEP  is used because it is the better solution between the three possibilities.
 
@@ -116,11 +116,11 @@ Personally, the crypto libraries were a big disappointment. Very few are audited
 
 A better solution to shared password between user it's used a hybrid encryption instead of use only the public key of the user. For example with the KEM algorithm
 
-Then to only add a password, , it would be relevant to encrypt passwords with a sysmetric key (Derived from the master key) to encrypt the password.
+Then to only add a password, it would be relevant to encrypt passwords with a sysmetric key (Derived from the master key) to encrypt the password.
 
 #### Authenticate the public key
 
-Morevoer, in the labo, the user's public key is not authenticated. I was planning to do it but I had too many errors in rust. An attacker that can write in the dabase can change easily change the public key. The user will therefore use  the attacker's public key.
+Morevoer, in the labo, the user's public key is not authenticated. I was planning to do it but I had too many errors in rust. An attacker that can write in the database can change easily change the public key. The user will therefore use  the attacker's public key.
 
 For a better security, we can compute a tag on the public key with the master key.
 
